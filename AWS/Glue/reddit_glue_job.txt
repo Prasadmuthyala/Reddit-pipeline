@@ -1,0 +1,62 @@
+import sys
+from awsglue.transforms import *
+from awsglue.utils import getResolvedOptions
+from pyspark.context import SparkContext
+from awsglue.context import GlueContext
+from awsglue.job import Job
+from awsgluedq.transforms import EvaluateDataQuality
+from pyspark.sql.functions import concat_ws
+from awsglue import DynamicFrame
+
+args = getResolvedOptions(sys.argv, ['JOB_NAME'])
+sc = SparkContext()
+glueContext = GlueContext(sc)
+spark = glueContext.spark_session
+job = Job(glueContext)
+job.init(args['JOB_NAME'], args)
+
+# Default ruleset used by all target nodes with data quality enabled
+DEFAULT_DATA_QUALITY_RULESET = """
+    Rules = [
+        ColumnCount > 0
+    ]
+"""
+
+# Script generated for node Reddit_raw
+Reddit_raw_node1733319211753 = glueContext.create_dynamic_frame.from_options(
+    format_options={"quoteChar": "\"", "withHeader": True, "separator": ","},
+    connection_type="s3",
+    format="csv",
+    connection_options={"paths": ["s3://reddit-api-project/raw/"], "recurse": True},
+    transformation_ctx="Reddit_raw_node1733319211753"
+)
+
+# Convert Dynamic Frame to DataFrame
+df = Reddit_raw_node1733319211753.toDF()
+
+# Concatenate three columns into one
+df_combined = df.withColumn('ESS_combine', concat_ws('-', df['edited'], df['spoiler'], df['stickied']))
+df_combined = df_combined.drop('edited', 'spoiler', 'stickied')
+
+# Convert back to DynamicFrame
+s3_node_combined = DynamicFrame.fromDF(df_combined, glueContext, 's3_node_combined')
+
+# Evaluate Data Quality
+EvaluateDataQuality().process_rows(
+    frame=s3_node_combined,
+    ruleset=DEFAULT_DATA_QUALITY_RULESET,
+    publishing_options={"dataQualityEvaluationContext": "EvaluateDataQuality_node1733319164918", "enableDataQualityResultsPublishing": True},
+    additional_options={"dataQualityResultsPublishing.strategy": "BEST_EFFORT", "observations.scope": "ALL"}
+)
+
+# Write the transformed DynamicFrame to S3
+Reddit_transformed_node1733319311361 = glueContext.write_dynamic_frame.from_options(
+    frame=s3_node_combined,  # Use s3_node_combined, not Reddit_raw_node1733319211753
+    connection_type="s3",
+    format="glueparquet",
+    connection_options={"path": "s3://reddit-api-project/transformed/", "partitionKeys": []},
+    format_options={"compression": "snappy"},
+    transformation_ctx="Reddit_transformed_node1733319311361"
+)
+
+job.commit()
