@@ -4,7 +4,8 @@ import pandas as pd
 
 
 from utils.constants import CLIENT_ID, SECRET, OUTPUT_PATH, AWS_BUCKET_NAME
-from etls.reddit_etl import connect_reddit, extract_posts, transform_data, load_data_to_csv, connect_to_s3
+from etls.reddit_etl import connect_reddit, extract_posts, transform_data, load_data_to_csv, connect_to_s3, \
+    create_bucket_if_not_exist, upload_to_s3
 
 
 def reddit_pipeline(file_name:str,subreddit:str,time_filter='day',limit=None):
@@ -30,5 +31,6 @@ def upload_s3_pipeline(ti):
     file_path = ti.xcom_pull(task_ids='reddit_extraction', key='return_value')
 
     s3 = connect_to_s3()
-    # create_bucket_if_not_exist(s3, AWS_BUCKET_NAME)
-    # upload_to_s3(s3, file_path, AWS_BUCKET_NAME, file_path.split('/')[-1])
+    create_bucket_if_not_exist(s3, AWS_BUCKET_NAME)
+    print(f"Uploading file: {file_path}")
+    upload_to_s3(s3, file_path, AWS_BUCKET_NAME, file_path.split('/')[-1])
