@@ -7,7 +7,7 @@ import requests
 import json
 from requests.auth import HTTPBasicAuth
 
-from utils.constants import POST_FIELDS, AWS_ACCESS_KEY_ID, AWS_ACCESS_KEY
+from utils.constants import POST_FIELDS, AWS_ACCESS_KEY_ID, AWS_ACCESS_KEY, AWS_REGION
 import boto3
 from botocore.exceptions import NoCredentialsError
 # Print the Python executable used by Airflow
@@ -90,9 +90,7 @@ def load_data_to_csv(data: pd.DataFrame, path: str):
 #aws
 def connect_to_s3():
     try:
-        s3 = boto3.client('s3',
-                               key=AWS_ACCESS_KEY_ID,
-                               secret=AWS_ACCESS_KEY)
+        s3 = boto3.client('s3',aws_access_key_id=AWS_ACCESS_KEY_ID,aws_secret_access_key=AWS_ACCESS_KEY,region_name=AWS_REGION)
         return s3
     except NoCredentialsError:
         print("Credentials not available.")
@@ -102,6 +100,7 @@ def create_bucket_if_not_exist(s3, bucket: str):
     try:
         # Check if the bucket exists
         response = s3.list_buckets()
+        print(response)
         if bucket not in [b['Name'] for b in response['Buckets']]:
             s3.create_bucket(Bucket=bucket)
             print(f"Bucket {bucket} created")
@@ -110,17 +109,16 @@ def create_bucket_if_not_exist(s3, bucket: str):
     except Exception as e:
         print(e)
 
-# Example usage
-# client_id = 'ev1hkeDJ4XsNN0Oz68I5wQ'  # Replace with your Reddit app's client_id
-# client_secret = '5HBdddRuTdT-7-8N0nqC_QMy8h9i6g'  # Replace with your Reddit app's client_secret
-# user_agent = 'DE'  # Custom User-Agent
-#
-# subreddit = "Python"
-# time_filter = "day"  # You can use "week", "month", etc.
-# limit = 10
-# access=connect_reddit(client_id,client_secret,user_agent)
-# posts = extract_posts(access, subreddit, time_filter, limit)
-#
-# # Print the posts
-# for post in posts:
-#     print(f"{post}")
+def upload_to_s3(s3, file_path: str, bucket: str, s3_file_name: str):
+    try:
+        # Upload the file
+        s3.upload_file(file_path, bucket, f'raw/{s3_file_name}')
+        print(f'File uploaded to s3://{bucket}/raw/{s3_file_name}')
+    except FileNotFoundError:
+        print('The file was not found')
+    except NoCredentialsError:
+        print("Credentials not available.")
+    except Exception as e:
+        print(f"Error uploading file: {e}")
+
+
