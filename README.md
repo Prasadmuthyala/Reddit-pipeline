@@ -4,7 +4,8 @@ This project provides a robust solution for extracting, transforming, and loadin
 
 ## Architecture
 
-![RedditDataEngineering](https://github.com/user-attachments/assets/2c245134-c4e2-46a4-8633-7b203f81606b)
+![Blank diagram](https://github.com/user-attachments/assets/6f9600a4-2c59-4acd-844b-8a980604514e)
+
 
 ## Overview
 
